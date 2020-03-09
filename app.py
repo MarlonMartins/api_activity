@@ -1,12 +1,21 @@
 from flask import Flask, request
 from flask_restful import Resource, Api
-from models import People, Activities
+from models import People, Activities, Users
+from flask_httpauth import HTTPBasicAuth
 
+auth = HTTPBasicAuth()
 app = Flask(__name__)
 api = Api(app)
 
+@auth.verify_password
+def password_verification(login, password):
+    print('Validating user')
+    if not (login, password):
+        return False
+    return Users.query.filter_by(login=login,password=password).first()
 
 class Person(Resource):
+    @auth.login_required
     def get(self, name):
         person = People.query.filter_by(name=name).first()
         print(person)
@@ -57,6 +66,7 @@ class Person(Resource):
 
 
 class People_list(Resource):
+    @auth.login_required
     def get(self):
         people = People.query.all()
         response = [{'id': p.id, 'name': p.name, 'age': p.age} for p in people]
@@ -83,7 +93,8 @@ class Welcome(Resource):
 class Activities_list(Resource):
     def get(self):
         activities = Activities.query.all()
-        response = [{'id':act.id,'name':act.name,'person':act.person.name} for act in activities]
+        response = [{'id': act.id, 'name': act.name,
+                     'person': act.person.name} for act in activities]
         return response
 
     def post(self):
@@ -101,7 +112,6 @@ class Activities_list(Resource):
             response = {'status': 'error', 'message': 'Person not found'}
 
         return response
-
 
 api.add_resource(Welcome, '/')
 api.add_resource(People_list, '/person/')
